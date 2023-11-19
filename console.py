@@ -3,6 +3,7 @@
 import cmd
 from models import BaseModel, storage, User
 from models import Review, State, City, Amenity, Place
+import re
 
 
 class HBNBCommand(cmd.Cmd):
@@ -21,9 +22,11 @@ class HBNBCommand(cmd.Cmd):
         '''Creates a new instance of BaseModel, saves it (to the JSON file)
         and prints the id'''
         args = line.split()
+        if len(args) > 1:
+            return
         if not className_errors(args, check_id=False):
             return
-        obj = self.className[args[0]]()
+        obj = self.className[line]()
         obj.save()
         print(obj.id)
 
@@ -44,65 +47,105 @@ class HBNBCommand(cmd.Cmd):
         args = line.split()
         if not className_errors(args, check_id=True):
             return
-        dic = self.make_dict()
-        if args[1] not in dic:
-            print("** no instance found **")
-        else:
-            print(dic[args[1]])
+        if args[1] and len(args) == 2:
+            dic = storage.all()
+            a = args[0] + "." + args[1]
+            if a not in dic:
+                print("** no instance found **")
+            else:
+                print(dic[a])
 
     def do_destroy(self, line):
         '''Deletes an instance based on the class name and id'''
         args = line.split()
         if not className_errors(args, check_id=True):
             return
-        dic = self.make_dict()
-        if args[1] not in dic:
-            print("** no instance found **")
-        else:
+        if args[1] and len(args) == 2:
             dic = storage.all()
-            del dic[args[0] + "." + args[1]]
-            storage.save()
+            a = args[0] + "." + args[1]
+            if a not in dic:
+                print("** no instance found **")
+            else:
+                del dic[a]
+                storage.save()
 
     def do_all(self, arg):
         '''Prints all string representation of all instances based or not
         on the class name'''
         args = arg.split()
         all_objs = storage.all()
-
         if len(args) < 1:
             print(["{}".format(str(v)) for _, v in all_objs.items()])
             return
         if args[0] not in self.className:
             print("** class doesn't exist **")
         else:
-            for _, v in all_objs.items():
-                if type(v).__name__ == args[0]:
-                    print(["{}".format(str(v))])
+            print(["{}".format(str(v))
+                  for _, v in all_objs.items() if type(v).__name__ == args[0]])
 
     def do_update(self, line):
         '''Updates an instance based on the class name and id by adding or
         updating attribute'''
         args = line.split()
-        if not className_errors(argsi, check_id=True):
+        if not className_errors(args, check_id=True):
             return
-        dic = self.make_dict()
-        if len(args) == 2:
+        if args[1] and len(args) >= 2:
+            dic = self.make_dict()
             if args[1] not in dic:
                 print("** no instance found **")
             else:
-                print("** attribute name missing **")
+                if len(args) == 2:
+                    print("** attribute name missing **")
+                else:
+                    if len(args) == 3:
+                        print("** value missing **")
+                    else:
+                        obj = dic[args[1]]
+                        if args[3][0] == '"':
+                            values = args[3].split('"')
+                        else:
+                            return
+                        setattr(obj, args[2], values[1])
+                        storage.save()
+
+    def default(self, line):
+        '''execute custom command'''
+        names = ["BaseModel", "User", "State", "City", "Amenity",
+                 "Place", "Review"]
+
+        commands = {"all": self.do_all,
+                    "count": self.do_count,
+                    "show": self.do_show,
+                    "destroy": self.do_destroy,
+                    "update": self.do_update}
+
+        args = re.match(r'(\w+).(\w+)\((.*)\)$', line)
+        if not args:
             return
-        if len(args) == 3:
-            if len(args) == 3:
-                print("** value missing **")
-        else:
-            obj = dic[args[1]]
-            if args[3][0] == '"':
-                values = args[3].split('"')
-            else:
-                return
-            setattr(obj, args[2], values[1])
-            storage.save()
+        args = args.groups()
+        if args[0] in names and args[1] in commands:
+            if args[1] in ["all", "count"]:
+                commands[args[1]](args[0])
+            elif args[1] in ["show", "destroy"]:
+                commands[args[1]](args[0] + " " + args[2].replace('"', ''))
+            elif args[1] == "update":
+                a = re.match(r'"(.*)", "(.*)", (.*)', args[2])
+                if not a:
+                    return
+                a = a.groups()
+                s = a[0] + " " + a[1] + " " + a[2]
+                commands[args[1]](args[0] + " " + s)
+
+    def do_count(self, line):
+        ''' retrieve the number of instances of a class'''
+        all_objs = storage.all()
+        args = line.split()
+        count = 0
+        for key in all_objs.keys():
+            k = key.split('.')
+            if k[0] == args[0]:
+                count += 1
+        print(count)
 
     def emptyline(self):
         pass
