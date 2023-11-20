@@ -1,12 +1,11 @@
 .places {
     margin: 16px 10px;
 }
-.places h1{
+.places h1, .places h2{
     font-size: 30px;
 }
 .places article{
     display: flex;
-    
     justify-content: center;
     flex-wrap: wrap;
 }

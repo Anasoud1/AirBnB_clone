@@ -52,6 +52,7 @@
     border: 1px solid #DDDDDD;
     border-radius: 4px;
     visibility: hidden;
+    z-index: 2;
 }
 .locations .popover li{
     margin: 24px 22px;
